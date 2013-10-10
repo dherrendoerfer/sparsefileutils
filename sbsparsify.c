@@ -18,6 +18,7 @@
  */
 
 #define _FILE_OFFSET_BITS 64
+#define _GNU_SOURCE
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,10 +30,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <linux/fs.h>
+#include <linux/falloc.h>
 
 int main(int argc, char **argv) {
     struct stat     statinfo1;
-    int             fd1, fd2;
+    int             fd1;
     int             num_blocks;
     int             block_size;
     int             i;
@@ -42,13 +44,13 @@ int main(int argc, char **argv) {
     int             percent = -1;
     unsigned char   *buffer1;
 
-    if (argc != 3) {
-        fprintf(stderr, "%s a fast sparse-aware binary file copy.\n", argv[0]);
-        fprintf(stderr, "Usage: %s FILE1 FILE2\n", argv[0]);
+    if (argc != 2) {
+        fprintf(stderr, "%s a fast sparse block generator.\n", argv[0]);
+        fprintf(stderr, "Usage: %s FILE1\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
-    if ((fd1 = open(argv[1], O_RDONLY)) < 0) {
+    if ((fd1 = open(argv[1], O_RDWR)) < 0) {
         fprintf(stderr, "Cannot open %s\n", argv[1]);
         exit(EXIT_FAILURE);
     }
@@ -67,24 +69,15 @@ int main(int argc, char **argv) {
 
     num_blocks = (statinfo1.st_size + block_size - 1) / block_size;
 
-
-    if ((fd2 = open(argv[2], O_WRONLY|O_CREAT|O_TRUNC, 0777)) < 0) {
-        fprintf(stderr, "Cannot open %s\n", argv[3]);
-        close(fd1);
-        exit(EXIT_FAILURE);
-    }
-
     buffer1=malloc(block_size);
     if (!buffer1) {
         fprintf(stderr, "Cannot allocate buffer\n");
         close(fd1);
-        close(fd2);
         exit(EXIT_FAILURE);
     }
 
     sparse_blocks = 0;
     zero_blocks = 0;
-    //        different_blocks = 0;
     copied_blocks = 0;
 
     for (i=0; i<num_blocks; i++) {
@@ -95,7 +88,6 @@ int main(int argc, char **argv) {
             printf("ioctl failed: %s in block %d, are you root ?\n", strerror(errno), i);
 
             close(fd1);
-            close(fd2);
             exit(EXIT_FAILURE);
         }
 
@@ -107,87 +99,66 @@ int main(int argc, char **argv) {
             fflush(0);
         }
 
-        /* No source block: skip*/
+        /* No source block */
         if (!block) {
-            if (lseek(fd1, block_size, SEEK_CUR) < 0 ||
-                    lseek(fd2, block_size, SEEK_CUR) < 0 ) {
+            if (lseek(fd1, block_size, SEEK_CUR) < 0 ) {
                 fprintf(stderr, "Seek failed.\n");
                 close(fd1);
-                close(fd2);
                 exit(EXIT_FAILURE);
             }
             sparse_blocks++;
             continue;
         }
 
-        /* Check for zero blocks: skip if empty*/
-        else {
-            nread = read(fd1, buffer1, block_size);
+        nread = read(fd1, buffer1, block_size);
 
-            if (nread < block_size) {
-                if (i != (num_blocks -1)){
-                    fprintf(stderr, "Unexpected short read.\n");
-                    close(fd1);
-                    close(fd2);
-                    exit(EXIT_FAILURE);
-                }
-            }
-
-            if (nread == -1) {
-                fprintf(stderr, "Cannot read block %d on %s\n", i, argv[2]);
-            }
-            else {
-                int n;
-
-                for (n=0; n<nread; n++) {
-                    if (buffer1[n])
-                        break;
-                }
-
-                if (n==nread){
-                    if (lseek(fd2, nread, SEEK_CUR) < 0 ) {
-                        fprintf(stderr, "Seek failed.\n");
-                        close(fd1);
-                        close(fd2);
-                        exit(EXIT_FAILURE);
-                    }
-                    zero_blocks++;
-                    //                                    printf("S");
-                    continue;
-                }
-                else {
-                    if (write(fd2, buffer1, nread) != nread) {
-                        fprintf(stderr, "Cannot write block %d on %s\n", i, argv[3]);
-                    }
-                    else {
-                        copied_blocks++;
-                        continue;
-                    }
-                }
+        if (nread < block_size) {
+            if (i != (num_blocks -1)){
+                fprintf(stderr, "Unexpected short read.\n");
+                close(fd1);
+                exit(EXIT_FAILURE);
             }
         }
+
+        int n;
+        for (n=0; n<nread; n++) {
+            if (buffer1[n])
+                break;
+        }
+
+        if (n==nread){
+            /* Hole-Punch this block*/
+
+            if(fallocate(fd1,FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, (off_t) i*block_size, block_size)) {
+                fprintf(stderr, "Hole punch system call failed, may not be supported on this filesystem.\n");
+                perror("Details");
+                close(fd1);
+                exit(EXIT_FAILURE);
+            }
+            zero_blocks++;
+            continue;
+        }
+        else {
+           copied_blocks++;
+           continue;
+        }
+
     }
 
     close(fd1);
-    free(buffer1);
-
-    /* Finalize the file */
-    ftruncate(fd2,statinfo1.st_size);
-    fchown(fd2, statinfo1.st_uid, statinfo1.st_gid);
-    fchmod(fd2, statinfo1.st_mode);
-
-    close(fd2);
+    fflush(stdout);
 
     printf("\n");
 
     printf("Report:\n");
     printf("%d byte block size\n", block_size);
     printf("  total %08d blocks\n",num_blocks);
-    printf("Skipped %08d sparse blocks\n",sparse_blocks);
+    printf("  found %08d sparse blocks\n",sparse_blocks);
     printf("  found %08d zero blocks (now sparse)\n",zero_blocks);
-    printf(" copied %08d blocks\n",copied_blocks);
+    printf("  found %08d data blocks\n",copied_blocks);
     printf("  ------------------------------------\n");
     printf("  Sum:  %08d blocks accounted for.\n",(sparse_blocks+zero_blocks+copied_blocks));
 
     exit(EXIT_SUCCESS);
 }
+

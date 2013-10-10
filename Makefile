@@ -23,10 +23,13 @@ INSTALL = install
 TARGET = /usr/sbin
 
 
-all: sbcp sbdiff sbpatch sbmapcat sbmapmerge
+all: sbcp sbcat sbdiff sbpatch sbmapcat sbmapmerge sbsparsify
 
 sbcp:
 	$(CC) $(CFLAGS) sbcp.c -o sbcp
+
+sbcat:
+	$(CC) $(CFLAGS) sbcat.c -o sbcat
 
 sbdiff:
 	$(CC) $(CFLAGS) sbdiff.c -o sbdiff
@@ -40,12 +43,17 @@ sbmapcat:
 sbmapmerge:
 	$(CC) $(CFLAGS) sbmapmerge.c -o sbmapmerge
 
+sbsparsify:
+	$(CC) $(CFLAGS) sbsparsify.c -o sbsparsify
+
 install: sbcp sbdiff sbpatch sbmapcat sbmapmerge
 	$(INSTALL) sbcp $(TARGET)/sbcp
+	$(INSTALL) sbcat $(TARGET)/sbcat
 	$(INSTALL) sbdiff $(TARGET)/sbdiff
 	$(INSTALL) sbpatch $(TARGET)/sbpatch
 	$(INSTALL) sbmapcat $(TARGET)/sbmapcat
 	$(INSTALL) sbmapmerge $(TARGET)/sbmapmerge
+	$(INSTALL) sbmapmerge $(TARGET)/sbsparsify
 
 clean:
-	rm -f sbcp sbdiff sbpatch sbmapcat sbmapmerge
+	rm -f sbcp sbcat sbdiff sbpatch sbmapcat sbmapmerge sbsparsify
