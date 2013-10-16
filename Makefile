@@ -23,7 +23,7 @@ INSTALL = install
 TARGET = /usr/sbin
 
 
-all: sbcp sbcat sbdiff sbpatch sbmapcat sbmapmerge sbsparsify
+all: sbcp sbcat sbdiff sbpatch sbmapcat sbmapmerge sbinfo
 
 sbcp:
 	$(CC) $(CFLAGS) sbcp.c -o sbcp
@@ -46,6 +46,9 @@ sbmapmerge:
 sbsparsify:
 	$(CC) $(CFLAGS) sbsparsify.c -o sbsparsify
 
+sbinfo:
+	$(CC) $(CFLAGS) sbinfo.c -o sbinfo
+
 install: sbcp sbdiff sbpatch sbmapcat sbmapmerge
 	$(INSTALL) sbcp $(TARGET)/sbcp
 	$(INSTALL) sbcat $(TARGET)/sbcat
@@ -53,7 +56,9 @@ install: sbcp sbdiff sbpatch sbmapcat sbmapmerge
 	$(INSTALL) sbpatch $(TARGET)/sbpatch
 	$(INSTALL) sbmapcat $(TARGET)/sbmapcat
 	$(INSTALL) sbmapmerge $(TARGET)/sbmapmerge
-	$(INSTALL) sbmapmerge $(TARGET)/sbsparsify
+# Dont install sbsparsify, it's broken
+#	$(INSTALL) sbsparsify $(TARGET)/sbsparsify
+	$(INSTALL) sbinfo $(TARGET)/sbinfo
 
 clean:
-	rm -f sbcp sbcat sbdiff sbpatch sbmapcat sbmapmerge sbsparsify
+	rm -f sbcp sbcat sbdiff sbpatch sbmapcat sbmapmerge sbsparsify sbinfo

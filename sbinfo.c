@@ -45,12 +45,12 @@ int main(int argc, char **argv) {
     unsigned char   *buffer1;
 
     if (argc != 2) {
-        fprintf(stderr, "%s a fast sparse block generator.\n", argv[0]);
+        fprintf(stderr, "%s a sparse file info utility.\n", argv[0]);
         fprintf(stderr, "Usage: %s FILE1\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
-    if ((fd1 = open(argv[1], O_RDWR)) < 0) {
+    if ((fd1 = open(argv[1], O_RDONLY)) < 0) {
         fprintf(stderr, "Cannot open %s\n", argv[1]);
         exit(EXIT_FAILURE);
     }
@@ -110,9 +110,6 @@ int main(int argc, char **argv) {
             continue;
         }
 
-        off_t filepos;
-        filepos=lseek(fd1, 0, SEEK_CUR);
-
         nread = read(fd1, buffer1, block_size);
 
         if (nread < block_size) {
@@ -130,14 +127,6 @@ int main(int argc, char **argv) {
         }
 
         if (n==nread){
-            /* Hole-Punch this block*/
-
-            if(fallocate(fd1,FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, filepos, nread)) {
-                fprintf(stderr, "Hole punch fallocate() call failed, may not be supported on this filesystem.\n");
-                perror("Details");
-                close(fd1);
-                exit(EXIT_FAILURE);
-            }
             zero_blocks++;
             continue;
         }
@@ -145,7 +134,6 @@ int main(int argc, char **argv) {
            copied_blocks++;
            continue;
         }
-
     }
 
     close(fd1);
@@ -157,7 +145,7 @@ int main(int argc, char **argv) {
     printf("%d byte block size\n", block_size);
     printf("  total %08d blocks\n",num_blocks);
     printf("  found %08d sparse blocks\n",sparse_blocks);
-    printf("  found %08d zero blocks (now sparse)\n",zero_blocks);
+    printf("  found %08d zero blocks (can be made sparse)\n",zero_blocks);
     printf("  found %08d data blocks\n",copied_blocks);
     printf("  ------------------------------------\n");
     printf("  Sum:  %08d blocks accounted for.\n",(sparse_blocks+zero_blocks+copied_blocks));
