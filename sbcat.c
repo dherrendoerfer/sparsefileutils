@@ -84,7 +84,7 @@ int main(int argc, char **argv) {
         int nread = 0;
 
         if (ioctl(fd1, FIBMAP, &block)) {
-            printf("ioctl failed: %s in block %d, are you root ?\n", strerror(errno), i);
+            fprintf(stderr,"ioctl failed: %s in block %d, are you root ?\n", strerror(errno), i);
 
             close(fd1);
             exit(EXIT_FAILURE);
