@@ -3,6 +3,15 @@ sparsefileutils
 
 A collection of simple tools to copy backup and archive sparse files.
 
+Sparse files, files that contain holes in the underlying filesystem,
+are frequently used as image containers for virtual machines or remote
+storage (iSCSI, nbd, ...). 
+These tools faciliate the handling of sparse files because they only copy,
+read, or write blocks to disk that really need to be written. This improves
+data locality, block availability, and TRIM performance on flash based
+media considerably. It also provides a means to do overcommitment on
+hosting solutions.  
+
 sbcp 
 ----
 Copies one file to another, preserving sparse blocks and making all-zero
